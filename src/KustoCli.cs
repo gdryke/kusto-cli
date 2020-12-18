@@ -17,13 +17,14 @@ namespace kusto_cli
         // TODO better arrangement so this can be mocked and tested.
         static public void RunQuery(string cluster, string database, string query)
         {
+            var kcsb;
             if (cluster == "https://help.kusto.windows.net")
             {
-                var kcsb = new KustoConnectionStringBuilder("https://help.kusto.windows.net/Samples; Fed=true; Accept=true");
+                kcsb = new KustoConnectionStringBuilder("https://help.kusto.windows.net/Samples; Fed=true; Accept=true");
             }
             else
             {
-                var kcsb = new KustoConnectionStringBuilder(cluster, database).WithAadUserPromptAuthentication();
+                kcsb = new KustoConnectionStringBuilder(cluster, database).WithAadUserPromptAuthentication();
             }
             
 

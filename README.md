@@ -9,6 +9,7 @@ TODO:
 - A real deployment process so it's in bin
   - Shell script that calls it?
 - integration testing using test cluster, that might be unathed?
+  - need a new, optional, auth call probably. https://github.com/gdryke/kusto-cli/runs/1579503747?check_suite_focus=true
 - query from stdin
 - Adding to brew or something?
 - Try to get smaller output

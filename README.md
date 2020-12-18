@@ -7,6 +7,9 @@ Helpful tutorials:
 TODO:
 - Probably lots of better stuff i can do with all the fun query parameters
 - A real deployment process so it's in bin
+  - Shell script that calls it?
+- integration testing using test cluster, that might be unathed?
+- query from stdin
 - Adding to brew or something?
 - Try to get smaller output
 - More tests

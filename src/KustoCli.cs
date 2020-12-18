@@ -17,7 +17,7 @@ namespace kusto_cli
         // TODO better arrangement so this can be mocked and tested.
         static public void RunQuery(string cluster, string database, string query)
         {
-            var kcsb;
+            KustoConnectionStringBuilder kcsb;
             if (cluster == "https://help.kusto.windows.net")
             {
                 kcsb = new KustoConnectionStringBuilder("https://help.kusto.windows.net/Samples; Fed=true; Accept=true");

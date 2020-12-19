@@ -13,14 +13,19 @@ namespace kusto_cli
         static public string Database;
         static public string Query;
         static public OutputFormat Format = OutputFormat.Text;
+        static public bool UseClientId;
+        static public string ClientId => System.Environment.GetEnvironmentVariable("KUSTOCLI_CLIENT_ID");
+        static public string ClientKey => System.Environment.GetEnvironmentVariable("KUSTOCLI_CLIENT_KEY");
+        static public string Authority => System.Environment.GetEnvironmentVariable("KUSTOCLI_TENANT_ID");
 
         // TODO better arrangement so this can be mocked and tested.
         static public void RunQuery(string cluster, string database, string query)
         {
             KustoConnectionStringBuilder kcsb;
-            if (cluster == "https://help.kusto.windows.net")
+            if (UseClientId)
             {
-                kcsb = new KustoConnectionStringBuilder("https://help.kusto.windows.net/Samples; Fed=true; Accept=true");
+                kcsb = new KustoConnectionStringBuilder(cluster, database)
+                            .WithAadApplicationKeyAuthentication(ClientId, ClientKey, Authority);
             }
             else
             {
@@ -88,6 +93,9 @@ namespace kusto_cli
                         }
                         i++;
                         break;
+                    case "--use-client-id":
+                        UseClientId = true;
+                        break;
                     default:
                         Console.WriteLine($"Unknown argument: {args[i]}");
                         WriteUsage();
@@ -118,7 +126,7 @@ namespace kusto_cli
 
         static void WriteUsage()
         {
-            Console.WriteLine("usage: kusto-cli [-c cluster] [-d database] [-q query] [-f format]");
+            Console.WriteLine("usage: kusto-cli [-c cluster] [-d database] [-q query] [-f format] [--useClientId]");
         }
     }
 

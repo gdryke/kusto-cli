@@ -15,7 +15,7 @@ namespace kusto_cli
         static public OutputFormat Format = OutputFormat.Text;
         static public bool UseClientId;
         static public string ClientId => System.Environment.GetEnvironmentVariable("KUSTOCLI_CLIENT_ID");
-        static public string ClientKey => System.Environment.GetEnvironmentVariable("KUSTOCLI_CLIENT_KEY");
+        static public string ClientKey => System.Environment.GetEnvironmentVariable("KUSTOCLI_CLIENT_KEY").Trim();
         static public string Authority => System.Environment.GetEnvironmentVariable("KUSTOCLI_TENANT_ID");
 
         // TODO better arrangement so this can be mocked and tested.

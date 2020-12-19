@@ -19,20 +19,8 @@ namespace kusto_cli
         static public string Authority => System.Environment.GetEnvironmentVariable("KUSTOCLI_TENANT_ID");
 
         // TODO better arrangement so this can be mocked and tested.
-        static public void RunQuery(string cluster, string database, string query)
-        {
-            KustoConnectionStringBuilder kcsb;
-            if (UseClientId)
-            {
-                kcsb = new KustoConnectionStringBuilder(cluster, database)
-                            .WithAadApplicationKeyAuthentication(ClientId, ClientKey, Authority);
-            }
-            else
-            {
-                kcsb = new KustoConnectionStringBuilder(cluster, database).WithAadUserPromptAuthentication();
-            }
-            
-
+        static public void RunQuery(KustoConnectionStringBuilder kcsb, string query)
+        {   
             using (var queryProvider = KustoClientFactory.CreateCslQueryProvider(kcsb))
             {
                 var clientRequestProperties = new ClientRequestProperties() { ClientRequestId = Guid.NewGuid().ToString() };
@@ -105,6 +93,22 @@ namespace kusto_cli
             return true;
         }
 
+        static public void ValidateArgs() {}
+
+// Update this to use Arguments class or something better for testability
+        public static KustoConnectionStringBuilder GetConnectionStringBuilder(string cluster, string database)
+        {
+            if (UseClientId)
+            {
+                return new KustoConnectionStringBuilder(cluster, database)
+                            .WithAadApplicationKeyAuthentication(ClientId, ClientKey, Authority);
+            }
+            else
+            {
+                return new KustoConnectionStringBuilder(cluster, database).WithAadUserPromptAuthentication();
+            }
+        }
+
         static int Main(string[] args)
         {
             if (!ParseArgs(args))
@@ -113,7 +117,9 @@ namespace kusto_cli
             }
             try
             {
-                RunQuery(Cluster, Database, Query);
+                // update all of this to use an Args or Options class for args
+                ValidateArgs();
+                RunQuery(GetConnectionStringBuilder(Cluster, Database), Query);
             }
             catch (Exception ex)
             {

@@ -28,6 +28,6 @@ jobs:
     - name: Integration Test
       run: ./integration-test.sh
       env:
-        KUSTOCLI_CLIENT_ID=ac25f637-e43c-4dd5-942c-30ebc852d788
-        KUSTOCLI_CLIENT_KEY=${{ secrets.KUSTOCLI_CLIENT_KEY }}
-        KUSTOCLI_TENANT_ID=778f31df-53d5-450a-8cf0-c35547574e75
+        KUSTOCLI_CLIENT_ID: ac25f637-e43c-4dd5-942c-30ebc852d788
+        KUSTOCLI_CLIENT_KEY: ${{ secrets.KUSTOCLI_CLIENT_KEY }}
+        KUSTOCLI_TENANT_ID: 778f31df-53d5-450a-8cf0-c35547574e75

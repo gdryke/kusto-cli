@@ -10,32 +10,52 @@ namespace kusto_cli.test
         public void EmptyArgsParsesOkay()
         {
             string[] args = new string[0];
-            Assert.IsTrue(KustoCli.ParseArgs(args));
+            Assert.IsNotNull(KustoCli.ParseArgs(args));
         }
 
         [TestMethod]
         public void UnknownArgFailsToParse()
         {
             string[] args = new string[] {"-yy"};
-            Assert.IsFalse(KustoCli.ParseArgs(args));
+            Assert.IsNull(KustoCli.ParseArgs(args));
         }
 
         [TestMethod]
         public void FullArgsParsesSuccessfully()
         {
             string[] args = new string[] {"-c", "cluster", "-d", "database", "-q", "query"};
-            Assert.IsTrue(KustoCli.ParseArgs(args));
-            Assert.AreEqual(KustoCli.Cluster, args[1]);
-            Assert.AreEqual(KustoCli.Database, args[3]);
-            Assert.AreEqual(KustoCli.Query, args[5]);
+            var processedArgs = KustoCli.ParseArgs(args);
+            Assert.IsNotNull(processedArgs);
+            Assert.AreEqual(processedArgs.Cluster, args[1]);
+            Assert.AreEqual(processedArgs.Database, args[3]);
+            Assert.AreEqual(processedArgs.Query, args[5]);
         }
 
         [TestMethod]
         public void FormatDefaultsToText()
         {
             string[] args = new string[0];
-            Assert.IsTrue(KustoCli.ParseArgs(args));
-            Assert.AreEqual(KustoCli.Format, OutputFormat.Text);
+            var processedArgs = KustoCli.ParseArgs(args);
+            Assert.IsNotNull(processedArgs);
+            Assert.AreEqual(processedArgs.Format, OutputFormat.Text);
+        }
+
+        [TestMethod]
+        public void UseClientIdDefaultsFalse()
+        {
+            string[] args = new string[0];
+            var processedArgs = KustoCli.ParseArgs(args);
+            Assert.IsNotNull(processedArgs);
+            Assert.IsFalse(processedArgs.UseClientId);
+        }
+
+        [TestMethod]
+        public void UseClientIdDGetsSetToTrue()
+        {
+            string[] args = new string[] {"--use-client-id"};
+            var processedArgs = KustoCli.ParseArgs(args);
+            Assert.IsNotNull(processedArgs);
+            Assert.IsTrue(processedArgs.UseClientId);
         }
     }
 }

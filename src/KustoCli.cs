@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 using Kusto.Data;
 using Kusto.Data.Common;
 using Kusto.Data.Net.Client;
@@ -9,122 +10,150 @@ namespace kusto_cli
 {
     public class KustoCli
     {
-        static public string Cluster;
-        static public string Database;
-        static public string Query;
-        static public OutputFormat Format = OutputFormat.Text;
-        static public bool UseClientId;
-        static public string ClientId => System.Environment.GetEnvironmentVariable("KUSTOCLI_CLIENT_ID");
-        static public string ClientKey => System.Environment.GetEnvironmentVariable("KUSTOCLI_CLIENT_KEY").Trim();
-        static public string Authority => System.Environment.GetEnvironmentVariable("KUSTOCLI_TENANT_ID");
+        static public ProgramArguments ProgramArgs;
 
-        // TODO better arrangement so this can be mocked and tested.
-        static public void RunQuery(KustoConnectionStringBuilder kcsb, string query)
+        static async public Task RunQuery(ICslQueryProvider queryProvider, ProgramArguments programArgs)
         {   
-            using (var queryProvider = KustoClientFactory.CreateCslQueryProvider(kcsb))
+            var clientRequestProperties = new ClientRequestProperties() { ClientRequestId = Guid.NewGuid().ToString() };
+            using (var reader = await queryProvider.ExecuteQueryAsync(programArgs.Database, programArgs.Query, clientRequestProperties))
             {
-                var clientRequestProperties = new ClientRequestProperties() { ClientRequestId = Guid.NewGuid().ToString() };
-                using (var reader = queryProvider.ExecuteQuery(query, clientRequestProperties))
+                // other tables have viz and query details
+                TextWriter stdout = Console.Out;
+                switch (programArgs.Format)
                 {
-                    // other tables have viz and query details
-                    TextWriter stdout = Console.Out;
-                    switch (Format)
-                    {
-                        case OutputFormat.Text:
-                            reader.WriteAsText(null, true, stdout, firstOnly: true, markdown: false , includeWithHeader: "test", includeHeader:true);
-                            break;
-                        case OutputFormat.Markdown:
-                            reader.WriteAsText("results", true, stdout, firstOnly: true, markdown: true , includeWithHeader: "test", includeHeader:true);
-                            break;
-                        case OutputFormat.Csv:
-                            reader.WriteAsCsv(true, stdout);
-                            break;
-                        case OutputFormat.Json:
-                            reader.WriteAsJson(stdout, out long bytes);
-                            break;
-                        case OutputFormat.Tsv:
-                            reader.WriteAsTsv(true, stdout);
-                            break;
-                        default:
-                            throw new NotImplementedException();
-                    }
+                    case OutputFormat.Text:
+                        reader.WriteAsText(null, true, stdout, firstOnly: true, markdown: false , includeWithHeader: "test", includeHeader:true);
+                        break;
+                    case OutputFormat.Markdown:
+                        reader.WriteAsText("results", true, stdout, firstOnly: true, markdown: true , includeWithHeader: "test", includeHeader:true);
+                        break;
+                    case OutputFormat.Csv:
+                        reader.WriteAsCsv(true, stdout);
+                        break;
+                    case OutputFormat.Json:
+                        reader.WriteAsJson(stdout, out long bytes);
+                        break;
+                    case OutputFormat.Tsv:
+                        reader.WriteAsTsv(true, stdout);
+                        break;
+                    default:
+                        throw new NotImplementedException();
                 }
             }
         }
 
-        static public bool ParseArgs(string[] args)
+// TODO update this to instead return ProgramArgs, just has test implications
+        static public ProgramArguments ParseArgs(string[] args)
         {
+            ProgramArguments programArgs = new ProgramArguments();
             for (int i = 0; i < args.Length; i++)
             {
                 switch (args[i])
                 {
                     case "-c":
                     case "--cluster":
-                        Cluster = args[i+1];
+                        programArgs.Cluster = args[i+1];
                         i++;
                         break;
                     case "-d":
                     case "--database":
-                        Database = args[i+1];
+                        programArgs.Database = args[i+1];
                         i++;
                         break;
                     case "-q":
                     case "--query":
-                        Query = args[i+1];
+                        programArgs.Query = args[i+1];
                         i++;
                         break;
                     case "-f":
                     case "--format":
-                        if (!OutputFormat.TryParse(args[i+1], true, out Format))
+                        if (!OutputFormat.TryParse(args[i+1], true, out programArgs.Format))
                         {
                             throw new Exception("Incorrect format given");
                         }
                         i++;
                         break;
                     case "--use-client-id":
-                        UseClientId = true;
+                        programArgs.UseClientId = true;
                         break;
                     default:
                         Console.WriteLine($"Unknown argument: {args[i]}");
                         WriteUsage();
-                        return false;
+                        return null;
                 }
             }
+
+            return programArgs;
+        }
+
+        static async public Task<bool> ValidateArgs(ProgramArguments programArgs)
+        {
+
+            if (string.IsNullOrEmpty(programArgs.Cluster))
+            {
+                await Console.Error.WriteLineAsync("Required parameter cluster (-c) not set.");
+                return false;
+            }
+            
+            if (string.IsNullOrEmpty(programArgs.Database))
+            {
+                await Console.Error.WriteLineAsync("Required parameter database (-d) not set.");
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(programArgs.Query))
+            {
+                await Console.Error.WriteLineAsync("Required parameter database (-d) not set.");
+                return false;
+            }
+
             return true;
         }
 
-        static public void ValidateArgs() {}
-
-// Update this to use Arguments class or something better for testability
-        public static KustoConnectionStringBuilder GetConnectionStringBuilder(string cluster, string database)
+        public static ICslQueryProvider GetQueryProvider(ProgramArguments programArgs)
         {
-            if (UseClientId)
+            KustoConnectionStringBuilder kcsb = null;
+            if (programArgs.UseClientId)
             {
-                return new KustoConnectionStringBuilder(cluster, database)
-                            .WithAadApplicationKeyAuthentication(ClientId, ClientKey, Authority);
+                kcsb = new KustoConnectionStringBuilder(programArgs.Cluster, programArgs.Database)
+                            .WithAadApplicationKeyAuthentication(programArgs.ClientId, programArgs.ClientKey, programArgs.Authority);
             }
             else
             {
-                return new KustoConnectionStringBuilder(cluster, database).WithAadUserPromptAuthentication();
+                kcsb = new KustoConnectionStringBuilder(programArgs.Cluster, programArgs.Database).WithAadUserPromptAuthentication();
             }
+            return KustoClientFactory.CreateCslQueryProvider(kcsb);
         }
 
-        static int Main(string[] args)
+        static async Task<int> Main(string[] args)
         {
-            if (!ParseArgs(args))
+            ProgramArguments programArgs = ParseArgs(args);
+            if (programArgs == null)
             {
+                Console.Error.WriteLine("Exception with arguments.");
                 return 1;
             }
+
+            ICslQueryProvider queryProvider = null;
+
             try
             {
                 // update all of this to use an Args or Options class for args
-                ValidateArgs();
-                RunQuery(GetConnectionStringBuilder(Cluster, Database), Query);
+                if (!await ValidateArgs(programArgs))
+                {
+                    Console.Error.WriteLine("Invalid arguments.");
+                }
+                queryProvider = GetQueryProvider(programArgs);
+                await RunQuery(queryProvider, programArgs);
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine("Exception querying Kusto.");
                 Console.Error.WriteLine(ex.ToString());
+            }
+            finally 
+            {
+                queryProvider.Dispose();
             }
             
             return 0;

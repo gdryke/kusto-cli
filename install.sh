@@ -13,4 +13,4 @@ link_path="../$install_dir_part/kusto-cli"
 echo "Publishing kusto-cli to $install_dir with config: $config"
 dotnet publish -c $config -o $install_dir $project_path
 echo "Creating symlink at $bin_path to $link_path"
-ln -s $link_path $bin_path
+ln -sf $link_path $bin_path

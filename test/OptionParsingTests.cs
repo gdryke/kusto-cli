@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using kusto_cli;
+using System.Threading.Tasks;
 
 namespace kusto_cli.test
 {
@@ -14,17 +15,17 @@ namespace kusto_cli.test
         }
 
         [TestMethod]
-        public void UnknownArgFailsToParse()
+        public async Task UnknownArgFailsToParse()
         {
-            string[] args = new string[] {"-yy"};
-            Assert.IsNull(KustoCli.ParseArgs(args));
+            string[] args = new string[] { "-yy" };
+            Assert.IsNull(await KustoCli.ParseArgs(args));
         }
 
         [TestMethod]
-        public void FullArgsParsesSuccessfully()
+        public async Task FullArgsParsesSuccessfully()
         {
-            string[] args = new string[] {"-c", "cluster", "-d", "database", "-q", "query"};
-            var processedArgs = KustoCli.ParseArgs(args);
+            string[] args = new string[] { "-c", "cluster", "-d", "database", "-q", "query" };
+            var processedArgs = await KustoCli.ParseArgs(args);
             Assert.IsNotNull(processedArgs);
             Assert.AreEqual(processedArgs.Cluster, args[1]);
             Assert.AreEqual(processedArgs.Database, args[3]);
@@ -32,28 +33,28 @@ namespace kusto_cli.test
         }
 
         [TestMethod]
-        public void FormatDefaultsToText()
+        public async Task FormatDefaultsToText()
         {
             string[] args = new string[0];
-            var processedArgs = KustoCli.ParseArgs(args);
+            var processedArgs = await KustoCli.ParseArgs(args);
             Assert.IsNotNull(processedArgs);
             Assert.AreEqual(processedArgs.Format, OutputFormat.Text);
         }
 
         [TestMethod]
-        public void UseClientIdDefaultsFalse()
+        public async Task UseClientIdDefaultsFalse()
         {
             string[] args = new string[0];
-            var processedArgs = KustoCli.ParseArgs(args);
+            var processedArgs = await KustoCli.ParseArgs(args);
             Assert.IsNotNull(processedArgs);
             Assert.IsFalse(processedArgs.UseClientId);
         }
 
         [TestMethod]
-        public void UseClientIdDGetsSetToTrue()
+        public async Task UseClientIdDGetsSetToTrue()
         {
-            string[] args = new string[] {"--use-client-id"};
-            var processedArgs = KustoCli.ParseArgs(args);
+            string[] args = new string[] { "--use-client-id" };
+            var processedArgs = await KustoCli.ParseArgs(args);
             Assert.IsNotNull(processedArgs);
             Assert.IsTrue(processedArgs.UseClientId);
         }

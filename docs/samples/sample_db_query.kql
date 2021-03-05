@@ -1,0 +1,3 @@
+StormEvents 
+| project StartTime, EventId, EpisodeNarrative, EventNarrative 
+| take 10

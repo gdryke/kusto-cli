@@ -12,38 +12,44 @@ namespace kusto_cli
     {
         static public ProgramArguments ProgramArgs;
 
-        static async public Task RunQuery(ICslQueryProvider queryProvider, ProgramArguments programArgs)
-        {   
-            var clientRequestProperties = new ClientRequestProperties() { ClientRequestId = Guid.NewGuid().ToString() };
-            using (var reader = await queryProvider.ExecuteQueryAsync(programArgs.Database, programArgs.Query, clientRequestProperties))
+        static private System.Text.Encoding DEFAULT_INPUT_FILE_ENCODING = System.Text.Encoding.UTF8;
+
+        static async Task<int> Main(string[] args)
+        {
+            ProgramArguments programArgs = await ParseArgs(args);
+            if (programArgs == null)
             {
-                // other tables have viz and query details
-                TextWriter stdout = Console.Out;
-                switch (programArgs.Format)
-                {
-                    case OutputFormat.Text:
-                        reader.WriteAsText(null, true, stdout, firstOnly: true, markdown: false , includeWithHeader: "test", includeHeader:true);
-                        break;
-                    case OutputFormat.Markdown:
-                        reader.WriteAsText("results", true, stdout, firstOnly: true, markdown: true , includeWithHeader: "test", includeHeader:true);
-                        break;
-                    case OutputFormat.Csv:
-                        reader.WriteAsCsv(true, stdout);
-                        break;
-                    case OutputFormat.Json:
-                        reader.WriteAsJson(stdout, out long bytes);
-                        break;
-                    case OutputFormat.Tsv:
-                        reader.WriteAsTsv(true, stdout);
-                        break;
-                    default:
-                        throw new NotImplementedException();
-                }
+                Console.Error.WriteLine("Exception with arguments.");
+                return 1;
             }
+
+            ICslQueryProvider queryProvider = null;
+
+            try
+            {
+                if (!await ValidateArgs(programArgs))
+                {
+                    Console.Error.WriteLine("Invalid arguments.");
+                    WriteUsage();
+                    return -1;
+                }
+                queryProvider = GetQueryProvider(programArgs);
+                await RunQuery(queryProvider, programArgs);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("Exception querying Kusto.");
+                Console.Error.WriteLine(ex.ToString());
+            }
+            finally
+            {
+                queryProvider?.Dispose();
+            }
+
+            return 0;
         }
 
-// TODO update this to instead return ProgramArgs, just has test implications
-        static public ProgramArguments ParseArgs(string[] args)
+        static async public Task<ProgramArguments> ParseArgs(string[] args)
         {
             ProgramArguments programArgs = new ProgramArguments();
             for (int i = 0; i < args.Length; i++)
@@ -52,26 +58,36 @@ namespace kusto_cli
                 {
                     case "-c":
                     case "--cluster":
-                        programArgs.Cluster = args[i+1];
+                        programArgs.Cluster = args[i + 1];
                         i++;
                         break;
                     case "-d":
                     case "--database":
-                        programArgs.Database = args[i+1];
+                        programArgs.Database = args[i + 1];
                         i++;
                         break;
                     case "-q":
                     case "--query":
-                        programArgs.Query = args[i+1];
+                        programArgs.Query = args[i + 1];
+                        i++;
+                        break;
+                    case "-i":
+                    case "--query-file":
+                        programArgs.QueryFilePath = args[i + 1];
                         i++;
                         break;
                     case "-f":
                     case "--format":
-                        if (!OutputFormat.TryParse(args[i+1], true, out programArgs.Format))
+                        if (!OutputFormat.TryParse(args[i + 1], true, out programArgs.Format))
                         {
                             throw new Exception("Incorrect format given");
                         }
                         i++;
+                        break;
+                    case "-h":
+                    case "--help":
+                        WriteUsage();
+                        System.Environment.Exit(0);
                         break;
                     case "--use-client-id":
                         programArgs.UseClientId = true;
@@ -81,6 +97,12 @@ namespace kusto_cli
                         WriteUsage();
                         return null;
                 }
+            }
+
+            // Query can also come from stdin
+            if (System.Console.IsInputRedirected)
+            {
+                programArgs.StdinQuery = await System.Console.In.ReadToEndAsync();
             }
 
             return programArgs;
@@ -94,18 +116,22 @@ namespace kusto_cli
                 await Console.Error.WriteLineAsync("Required parameter cluster (-c) not set.");
                 return false;
             }
-            
+
             if (string.IsNullOrEmpty(programArgs.Database))
             {
                 await Console.Error.WriteLineAsync("Required parameter database (-d) not set.");
                 return false;
             }
 
-            if (string.IsNullOrEmpty(programArgs.Query))
+            if (string.IsNullOrEmpty(programArgs.Query)
+                && string.IsNullOrEmpty(programArgs.QueryFilePath)
+                && string.IsNullOrEmpty(programArgs.StdinQuery))
             {
-                await Console.Error.WriteLineAsync("Required parameter database (-d) not set.");
+                await Console.Error.WriteLineAsync("No query found. Either use -q for text, -i for a file, or pipe to stdin.");
                 return false;
             }
+
+            // TODO add the set of checks to make sure we're not using 2 query inputs.
 
             return true;
         }
@@ -125,43 +151,68 @@ namespace kusto_cli
             return KustoClientFactory.CreateCslQueryProvider(kcsb);
         }
 
-        static async Task<int> Main(string[] args)
+        static async public Task RunQuery(ICslQueryProvider queryProvider, ProgramArguments programArgs)
         {
-            ProgramArguments programArgs = ParseArgs(args);
-            if (programArgs == null)
-            {
-                Console.Error.WriteLine("Exception with arguments.");
-                return 1;
-            }
+            var clientRequestProperties = new ClientRequestProperties() { ClientRequestId = Guid.NewGuid().ToString() };
 
-            ICslQueryProvider queryProvider = null;
+            string query = await GetQueryContent(programArgs);
 
-            try
+            using (var reader = await queryProvider.ExecuteQueryAsync(programArgs.Database, query, clientRequestProperties))
             {
-                // update all of this to use an Args or Options class for args
-                if (!await ValidateArgs(programArgs))
+                // other tables have viz and query details
+                TextWriter stdout = Console.Out;
+                switch (programArgs.Format)
                 {
-                    Console.Error.WriteLine("Invalid arguments.");
+                    case OutputFormat.Text:
+                        reader.WriteAsText(null, true, stdout, firstOnly: true, markdown: false, includeWithHeader: "test", includeHeader: true);
+                        break;
+                    case OutputFormat.Markdown:
+                        reader.WriteAsText("results", true, stdout, firstOnly: true, markdown: true, includeWithHeader: "test", includeHeader: true);
+                        break;
+                    case OutputFormat.Csv:
+                        reader.WriteAsCsv(true, stdout);
+                        break;
+                    case OutputFormat.Json:
+                        reader.WriteAsJson(stdout, out long bytes);
+                        break;
+                    case OutputFormat.Tsv:
+                        reader.WriteAsTsv(true, stdout);
+                        break;
+                    default:
+                        throw new NotImplementedException();
                 }
-                queryProvider = GetQueryProvider(programArgs);
-                await RunQuery(queryProvider, programArgs);
             }
-            catch (Exception ex)
+        }
+
+        static async public Task<string> GetQueryContent(ProgramArguments programArgs)
+        {
+            if (!string.IsNullOrEmpty(programArgs.Query))
             {
-                Console.Error.WriteLine("Exception querying Kusto.");
-                Console.Error.WriteLine(ex.ToString());
+                return programArgs.Query;
             }
-            finally 
+
+            if (!string.IsNullOrEmpty(programArgs.QueryFilePath))
             {
-                queryProvider.Dispose();
+                // TODO This should handle encoding better.
+                return await File.ReadAllTextAsync(programArgs.QueryFilePath, DEFAULT_INPUT_FILE_ENCODING);
             }
-            
-            return 0;
+
+            if (!string.IsNullOrEmpty(programArgs.StdinQuery))
+            {
+                return programArgs.StdinQuery;
+            }
+
+            throw new ArgumentException("No query found in program arguments.");
+        }
+        static void BailOut()
+        {
+            WriteUsage();
+            System.Environment.Exit(1);
         }
 
         static void WriteUsage()
         {
-            Console.WriteLine("usage: kusto-cli [-c cluster] [-d database] [-q query] [-f format] [--useClientId]");
+            Console.WriteLine("usage: kusto-cli [-c cluster] [-d database] [-q query] [-i query file] [-f format] [--useClientId] [-h]");
         }
     }
 

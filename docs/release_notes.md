@@ -18,7 +18,7 @@ Also `-h` and a usage page.
     - `Query Parameter -> Query File Parameter -> Standard In`
   - Query File is just read in with UTF8 encoding. I think Kusto probably has broad unicode support though, so this should be updated.
 - New `-h` option to output usage
-- Usage page added at (docs/usage.md)[usage.md]
+- Usage page added at [docs/usage.md](usage.md)
 ### Fixed
 - Fixed text in argument validation.
 ### Removed

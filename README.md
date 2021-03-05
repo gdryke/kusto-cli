@@ -1,13 +1,13 @@
 # Overview
 Finally! Pass through user auth on non-windows.
 
-This is mostly just a small hack to enable [https://github.com/gdryke/vim-kql], but I'll try to make it as much of a thing as I can.
+This is mostly just a small hack to enable https://github.com/gdryke/vim-kql, but I'll try to make it as much of a thing as I can.
 
 # Installation
 Try out `install.sh`, results very much may vary.
 
 # Usage
-See [docs/usage.md]
+See [docs/usage.md](docs/usage.md)
 
 # Release Notes
 https://github.com/gdryke/kusto-cli/tree/main/docs/release_notes.md

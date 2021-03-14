@@ -24,7 +24,7 @@ namespace kusto_cli.test
         [TestMethod]
         public async Task FullArgsParsesSuccessfully()
         {
-            string[] args = new string[] { "-c", "cluster", "-d", "database", "-q", "query" };
+            string[] args = new string[] { "-c", "https://cluster.kusto.windows.net", "-d", "database", "-q", "query" };
             var processedArgs = await KustoCli.ParseArgs(args);
             Assert.IsNotNull(processedArgs);
             Assert.AreEqual(processedArgs.Cluster, args[1]);
@@ -57,6 +57,24 @@ namespace kusto_cli.test
             var processedArgs = await KustoCli.ParseArgs(args);
             Assert.IsNotNull(processedArgs);
             Assert.IsTrue(processedArgs.UseClientId);
+        }
+
+        [TestMethod]
+        public void ClusterUriIsReturned()
+        {
+            string clusterInput = "help";
+            var clusterValue = KustoCli.ProcessClusterParameter(clusterInput);
+            Assert.IsNotNull(clusterValue);
+            Assert.AreEqual("https://help.kusto.windows.net", clusterValue);
+        }
+
+        [TestMethod]
+        public void ClusterNameBecomesUri()
+        {
+            string clusterInput = "https://help.kusto.windows.net";
+            var clusterValue = KustoCli.ProcessClusterParameter(clusterInput);
+            Assert.IsNotNull(clusterValue);
+            Assert.AreEqual("https://help.kusto.windows.net", clusterValue);
         }
     }
 }

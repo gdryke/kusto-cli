@@ -9,6 +9,7 @@ namespace kusto_cli
         public string QueryFilePath;
         public OutputFormat Format = OutputFormat.Text;
         public bool UseClientId;
+        public bool UseUserAssignedMSI;
         public string ClientId => System.Environment.GetEnvironmentVariable("KUSTOCLI_CLIENT_ID");
         public string ClientKey => System.Environment.GetEnvironmentVariable("KUSTOCLI_CLIENT_KEY").Trim();
         public string Authority => System.Environment.GetEnvironmentVariable("KUSTOCLI_TENANT_ID");

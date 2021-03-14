@@ -5,6 +5,7 @@ using Kusto.Data;
 using Kusto.Data.Common;
 using Kusto.Data.Net.Client;
 using Kusto.Cloud.Platform.Data;
+using Microsoft.Azure.Services.AppAuthentication;
 
 namespace kusto_cli
 {
@@ -58,7 +59,7 @@ namespace kusto_cli
                 {
                     case "-c":
                     case "--cluster":
-                        programArgs.Cluster = args[i + 1];
+                        programArgs.Cluster = ProcessClusterParameter(args[i + 1]);
                         i++;
                         break;
                     case "-d":
@@ -91,6 +92,9 @@ namespace kusto_cli
                         break;
                     case "--use-client-id":
                         programArgs.UseClientId = true;
+                        break;
+                    case "--use-user-assigned-msi":
+                        programArgs.UseUserAssignedMSI = true;
                         break;
                     default:
                         Console.WriteLine($"Unknown argument: {args[i]}");
@@ -143,6 +147,13 @@ namespace kusto_cli
             {
                 kcsb = new KustoConnectionStringBuilder(programArgs.Cluster, programArgs.Database)
                             .WithAadApplicationKeyAuthentication(programArgs.ClientId, programArgs.ClientKey, programArgs.Authority);
+            }
+            else if (programArgs.UseUserAssignedMSI)
+            {
+                var azureServiceTokenProvider = new AzureServiceTokenProvider($"RunAs=App;AppId={programArgs.ClientId}");
+                kcsb = new KustoConnectionStringBuilder(programArgs.Cluster, programArgs.Database)
+                        .WithAadTokenProviderAuthentication(
+                            () => azureServiceTokenProvider.GetAccessTokenAsync(programArgs.Cluster));
             }
             else
             {
@@ -204,12 +215,28 @@ namespace kusto_cli
 
             throw new ArgumentException("No query found in program arguments.");
         }
+
+        static public string ProcessClusterParameter(string clusterInputParameter)
+        {
+            if (Uri.TryCreate(clusterInputParameter, UriKind.Absolute, out _))
+            {
+                return clusterInputParameter;
+            }
+            else
+            {
+                return $"https://{clusterInputParameter}.kusto.windows.net";
+            }
+        }
+
+        // TODO
+        // static async public Tuple GetClusterDbInfoFromString(string connectionString) {}
+        // Or maybe just another fork in the connection string builder?
+
         static void BailOut()
         {
             WriteUsage();
             System.Environment.Exit(1);
         }
-
         static void WriteUsage()
         {
             Console.WriteLine("usage: kusto-cli [-c cluster] [-d database] [-q query] [-i query file] [-f format] [--useClientId] [-h]");

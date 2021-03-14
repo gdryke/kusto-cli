@@ -1,13 +1,20 @@
 # Release Notes
 
 ## 0.3
+
 ### New
+- User Assigned MSI support!
+  - `UseUserAssignedMSI` and then the environment variable `KUSTOCLI_CLIENT_ID`
+  - I'm being explicit about user vs system here, that way you can have the client ID env present and not use it with a (future) `UseSystemAssignedMSI` flag
+  - Move client id/client secret/authority away from ENV into parameters would make this uncessary and allow for extrapolating of intent for MSI auth based on parameters
 ### Fixed
+- You can pass in just a cluster name and it will make it into a URI
 ### Removed
 ### Changed
+- ClientId now has another distinct, mutually exclusive use, with user assigned MSI
 
 ## 0.2
-Few little todolist things that I'd already done.
+Few little todo list things that I'd already done.
 Also added some new query input options!
 Also `-h` and a usage page.
 ### New
